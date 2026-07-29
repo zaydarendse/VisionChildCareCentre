@@ -386,7 +386,7 @@ async function loadBackOfficeView(user) {
     const div = document.createElement('div');
     div.className = 'recent-row';
     div.innerHTML =
-      '<span>' + escapeHtml(s.branch) + ' — ' + formatDateTime(s.date) + '</span>' + '</span>' +
+      '<span>' + escapeHtml(s.branch) + ' — ' + formatDateTime(s.timestamp) + '</span>' + '</span>' +
       '<span>' + (s.pdfUrl ? '<a href="' + s.pdfUrl + '" target="_blank">PDF</a>' : '') + '</span>';
     listEl.appendChild(div);
   });
