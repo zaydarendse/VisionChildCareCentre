@@ -3,7 +3,7 @@
 // ─────────────────────────────────────────────────────────────────────
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx61az3p6AVZ5DJ-BYAjYeRsZYzEmkPFPm8wy-jRoXR02ghe6rAgFOoUTNw8wiyKe_5/exec';
 
-const STORAGE_KEY = 'vision_cashup_email';
+const STORAGE_KEY = 'visionchildandyouthcarecentre@gmail.com';
 
 // ─────────────────────────────────────────────────────────────────────
 // API HELPERS
@@ -169,6 +169,9 @@ const DENOMS = [
 
 function setupManagerView(user) {
   document.getElementById('mBranch').value = user.branch;
+  if (!document.getElementById('mCasher').value) {
+    document.getElementById('mCasher').value = user.fullName;
+  }
   if (!document.getElementById('mDate').value) {
     document.getElementById('mDate').value = new Date().toISOString().slice(0, 10);
   }
