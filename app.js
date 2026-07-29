@@ -98,7 +98,7 @@ async function routeForEmail(email) {
     await loadAdminView(result.email);
     showView('admin');
   } else if (result.status === 'Approved' && result.role === 'BackOffice') {
-    await loadBackOfficeView(result);
+    await (result);
     showView('backoffice');
   } else {
     showAuthError('Your account has an unrecognised status. Please contact an admin.');
@@ -367,6 +367,15 @@ async function loadAdminView(adminEmail) {
 // ─────────────────────────────────────────────────────────────────────
 // BACK OFFICE VIEW
 // ─────────────────────────────────────────────────────────────────────
+
+function formatDateTime(value) {
+  if (!value) return '';
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return String(value);
+  const pad = (n) => String(n).padStart(2, '0');
+  return pad(d.getDate()) + '/' + pad(d.getMonth() + 1) + '/' + d.getFullYear() + ' ' +
+         pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+}
 
 async function loadBackOfficeView(user) {
   const result = await apiGet('recentSubmissions', { email: user.email, branch: user.branch });
