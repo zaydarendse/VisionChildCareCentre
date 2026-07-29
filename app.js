@@ -98,7 +98,7 @@ async function routeForEmail(email) {
     await loadAdminView(result.email);
     showView('admin');
   } else if (result.status === 'Approved' && result.role === 'BackOffice') {
-    await (result);
+    await loadBackOfficeView(result);
     showView('backoffice');
   } else {
     showAuthError('Your account has an unrecognised status. Please contact an admin.');
@@ -386,7 +386,7 @@ async function loadBackOfficeView(user) {
     const div = document.createElement('div');
     div.className = 'recent-row';
     div.innerHTML =
-      '<span>' + escapeHtml(s.branch) + ' — ' + escapeHtml(s.date) + '</span>' +
+      '<span>' + escapeHtml(s.branch) + ' — ' + formatDateTime(s.date) + '</span>' + '</span>' +
       '<span>' + (s.pdfUrl ? '<a href="' + s.pdfUrl + '" target="_blank">PDF</a>' : '') + '</span>';
     listEl.appendChild(div);
   });
