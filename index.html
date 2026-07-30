@@ -148,9 +148,46 @@
 
   <!-- ─── ADMIN VIEW ───────────────────────────────────────── -->
   <section id="view-admin" class="view card" hidden>
-    <h1>Admin — Pending Approvals</h1>
-    <div id="pendingList"></div>
-    <p id="noPending" class="muted" hidden>No pending registrations right now.</p>
+    <h1>Admin</h1>
+    <div class="admin-tabs">
+      <button class="tab-btn active" data-tab="approvals">Approvals</button>
+      <button class="tab-btn" data-tab="submissions">Submissions</button>
+      <button class="tab-btn" data-tab="dashboard">Dashboard</button>
+    </div>
+
+    <div id="admin-tab-approvals" class="admin-tab-panel">
+      <div id="pendingList"></div>
+      <p id="noPending" class="muted" hidden>No pending registrations right now.</p>
+    </div>
+
+    <div id="admin-tab-submissions" class="admin-tab-panel" hidden>
+      <p class="muted">Every cash-up submitted by any branch, most recent first.</p>
+      <div id="adminRecentList"></div>
+    </div>
+
+    <div id="admin-tab-dashboard" class="admin-tab-panel" hidden>
+      <div class="dash-grid">
+        <div class="dash-card">
+          <h3>This Week</h3>
+          <div class="dash-stat"><span>Submissions</span><strong id="dashWeekCount">0</strong></div>
+          <div class="dash-stat"><span>Total Nett Sales</span><strong id="dashWeekNett">R 0.00</strong></div>
+          <div class="dash-stat"><span>Total Cards &amp; Cash</span><strong id="dashWeekCards">R 0.00</strong></div>
+          <div class="dash-stat"><span>Total Short/Over</span><strong id="dashWeekShortOver">R 0.00</strong></div>
+        </div>
+        <div class="dash-card">
+          <h3>This Month</h3>
+          <div class="dash-stat"><span>Submissions</span><strong id="dashMonthCount">0</strong></div>
+          <div class="dash-stat"><span>Total Nett Sales</span><strong id="dashMonthNett">R 0.00</strong></div>
+          <div class="dash-stat"><span>Total Cards &amp; Cash</span><strong id="dashMonthCards">R 0.00</strong></div>
+          <div class="dash-stat"><span>Total Short/Over</span><strong id="dashMonthShortOver">R 0.00</strong></div>
+        </div>
+      </div>
+      <h3 style="margin-top:20px;">This Month by Branch</h3>
+      <table class="donations-table">
+        <thead><tr><th>Branch</th><th>Submissions</th><th>Total Nett Sales</th></tr></thead>
+        <tbody id="dashByBranchBody"></tbody>
+      </table>
+    </div>
   </section>
 
   <!-- ─── BACK OFFICE VIEW ─────────────────────────────────── -->
