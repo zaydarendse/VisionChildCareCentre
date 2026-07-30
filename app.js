@@ -95,7 +95,7 @@ async function routeForEmail(email) {
     setupManagerView(result);
     showView('manager');
   } else if (result.status === 'Approved' && result.role === 'Admin') {
-    await loadAdminView(result.email);
+    initAdminTabs(result.email);
     showView('admin');
   } else if (result.status === 'Approved' && result.role === 'BackOffice') {
     await loadBackOfficeView(result);
@@ -313,6 +313,71 @@ document.getElementById('newCashUpBtn').addEventListener('click', () => {
 // ADMIN VIEW
 // ─────────────────────────────────────────────────────────────────────
 
+// ─────────────────────────────────────────────────────────────────────
+// ADMIN VIEW — tab switching
+// ─────────────────────────────────────────────────────────────────────
+
+let adminTabsInitialised = false;
+
+function initAdminTabs(adminEmail) {
+  if (!adminTabsInitialised) {
+    document.querySelectorAll('.tab-btn').forEach((btn) => {
+      btn.addEventListener('click', () => switchAdminTab(btn.dataset.tab, adminEmail));
+    });
+    adminTabsInitialised = true;
+  }
+  switchAdminTab('approvals', adminEmail);
+}
+
+function switchAdminTab(tab, adminEmail) {
+  document.querySelectorAll('.tab-btn').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
+  document.querySelectorAll('.admin-tab-panel').forEach((p) => { p.hidden = (p.id !== 'admin-tab-' + tab); });
+
+  if (tab === 'approvals') loadAdminView(adminEmail);
+  else if (tab === 'submissions') loadAdminSubmissions(adminEmail);
+  else if (tab === 'dashboard') loadAdminDashboard(adminEmail);
+}
+
+async function loadAdminSubmissions(adminEmail) {
+  const result = await apiGet('recentSubmissions', { email: adminEmail, branch: '' });
+  const listEl = document.getElementById('adminRecentList');
+  listEl.innerHTML = '';
+  if (!result.success) { listEl.innerHTML = '<p class="error-text">' + result.error + '</p>'; return; }
+  result.submissions.forEach((s) => {
+    const div = document.createElement('div');
+    div.className = 'recent-row';
+    div.innerHTML =
+      '<span>' + escapeHtml(s.branch) + ' — ' + formatDateTime(s.timestamp) + '</span>' +
+      '<span>' + (s.pdfUrl ? '<a href="' + s.pdfUrl + '" target="_blank">PDF</a>' : '') + '</span>';
+    listEl.appendChild(div);
+  });
+}
+
+async function loadAdminDashboard(adminEmail) {
+  const result = await apiGet('dashboardTotals', { email: adminEmail });
+  if (!result.success) {
+    document.getElementById('admin-tab-dashboard').innerHTML = '<p class="error-text">' + result.error + '</p>';
+    return;
+  }
+  document.getElementById('dashWeekCount').textContent = result.week.count;
+  document.getElementById('dashWeekNett').textContent = rand(result.week.totalNettSales);
+  document.getElementById('dashWeekCards').textContent = rand(result.week.totalCardsAndCash);
+  document.getElementById('dashWeekShortOver').textContent = rand(result.week.totalShortOver);
+
+  document.getElementById('dashMonthCount').textContent = result.month.count;
+  document.getElementById('dashMonthNett').textContent = rand(result.month.totalNettSales);
+  document.getElementById('dashMonthCards').textContent = rand(result.month.totalCardsAndCash);
+  document.getElementById('dashMonthShortOver').textContent = rand(result.month.totalShortOver);
+
+  const tbody = document.getElementById('dashByBranchBody');
+  tbody.innerHTML = '';
+  result.byBranch.forEach((b) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td>' + escapeHtml(b.branch) + '</td><td>' + b.count + '</td><td>' + rand(b.totalNettSales) + '</td>';
+    tbody.appendChild(tr);
+  });
+}
+
 async function loadAdminView(adminEmail) {
   const result = await apiGet('pendingUsers', { email: adminEmail });
   const listEl = document.getElementById('pendingList');
@@ -386,7 +451,7 @@ async function loadBackOfficeView(user) {
     const div = document.createElement('div');
     div.className = 'recent-row';
     div.innerHTML =
-      '<span>' + escapeHtml(s.branch) + ' — ' + formatDateTime(s.timestamp) + '</span>' + '</span>' +
+      '<span>' + escapeHtml(s.branch) + ' — ' + formatDateTime(s.timestamp) + '</span>' +
       '<span>' + (s.pdfUrl ? '<a href="' + s.pdfUrl + '" target="_blank">PDF</a>' : '') + '</span>';
     listEl.appendChild(div);
   });
