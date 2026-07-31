@@ -362,18 +362,20 @@ async function loadAdminDashboard(adminEmail) {
   document.getElementById('dashWeekCount').textContent = result.week.count;
   document.getElementById('dashWeekNett').textContent = rand(result.week.totalNettSales);
   document.getElementById('dashWeekCards').textContent = rand(result.week.totalCardsAndCash);
+  document.getElementById('dashWeekDonations').textContent = rand(result.week.totalDonations);
   document.getElementById('dashWeekShortOver').textContent = rand(result.week.totalShortOver);
 
   document.getElementById('dashMonthCount').textContent = result.month.count;
   document.getElementById('dashMonthNett').textContent = rand(result.month.totalNettSales);
   document.getElementById('dashMonthCards').textContent = rand(result.month.totalCardsAndCash);
+  document.getElementById('dashMonthDonations').textContent = rand(result.month.totalDonations);
   document.getElementById('dashMonthShortOver').textContent = rand(result.month.totalShortOver);
 
   const tbody = document.getElementById('dashByBranchBody');
   tbody.innerHTML = '';
   result.byBranch.forEach((b) => {
     const tr = document.createElement('tr');
-    tr.innerHTML = '<td>' + escapeHtml(b.branch) + '</td><td>' + b.count + '</td><td>' + rand(b.totalNettSales) + '</td>';
+    tr.innerHTML = '<td>' + escapeHtml(b.branch) + '</td><td>' + b.count + '</td><td>' + rand(b.totalNettSales) + '</td><td>' + rand(b.totalDonations) + '</td>';
     tbody.appendChild(tr);
   });
 }
