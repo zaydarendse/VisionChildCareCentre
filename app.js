@@ -180,7 +180,13 @@ function setupManagerView(user) {
 }
 
 function num(id) { return Number(document.getElementById(id).value) || 0; }
-function rand(v) { return 'R ' + Number(v).toFixed(2); }
+function rand(v) {
+  const num = Number(v) || 0;
+  const fixed = num.toFixed(2);
+  const parts = fixed.split('.');
+  parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return 'R ' + parts.join('.');
+}
 
 function recalcAll() {
   const totalNettSales = num('grossSales') - num('overingPaidAmount') - num('cashRefundsAmount') - num('expensePaidAmount');
