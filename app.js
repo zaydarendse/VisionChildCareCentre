@@ -3,7 +3,7 @@
 // ─────────────────────────────────────────────────────────────────────
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx61az3p6AVZ5DJ-BYAjYeRsZYzEmkPFPm8wy-jRoXR02ghe6rAgFOoUTNw8wiyKe_5/exec';
 
-const STORAGE_KEY = 'visionchildandyouthcarecentre@gmail.com';
+const STORAGE_KEY = 'vision_cashup_email';
 
 // ─────────────────────────────────────────────────────────────────────
 // API HELPERS
