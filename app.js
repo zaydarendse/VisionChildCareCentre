@@ -1,8 +1,8 @@
 // ─────────────────────────────────────────────────────────────────────
 // CONFIG — paste your Apps Script Web App /exec URL here after deploying
 // ─────────────────────────────────────────────────────────────────────
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx61az3p6AVZ5DJ-BYAjYeRsZYzEmkPFPm8wy-jRoXR02ghe6rAgFOoUTNw8wiyKe_5/exec';
-
+const APPS_SCRIPT_URL = '';
+https://script.google.com/macros/s/AKfycbx61az3p6AVZ5DJ-BYAjYeRsZYzEmkPFPm8wy-jRoXR02ghe6rAgFOoUTNw8wiyKe_5/exec
 const STORAGE_KEY = 'visionchildandyouthcarecentre@gmail.com';
 
 // ─────────────────────────────────────────────────────────────────────
@@ -164,7 +164,9 @@ async function loadBranchesIntoSelect(selectId) {
 const DENOMS = [
   { id: 'r200', value: 200 }, { id: 'r100', value: 100 }, { id: 'r50', value: 50 },
   { id: 'r20', value: 20 }, { id: 'r10', value: 10 }, { id: 'r5', value: 5 },
-  { id: 'r2', value: 2 }, { id: 'r1', value: 1 }, { id: 'c5', value: 0.05 }, { id: 'c1', value: 0.01 }
+  { id: 'r2', value: 2 }, { id: 'r1', value: 1 },
+  { id: 'c50', value: 0.50 }, { id: 'c20', value: 0.20 }, { id: 'c10', value: 0.10 },
+  { id: 'c5', value: 0.05 }, { id: 'c1', value: 0.01 }
 ];
 
 function setupManagerView(user) {
@@ -221,7 +223,7 @@ function recalcDonations() {
 }
 
 ['grossSales', 'overingPaidAmount', 'cashRefundsAmount', 'expensePaidAmount', 'totalCardSales',
-  'r200', 'r100', 'r50', 'r20', 'r10', 'r5', 'r2', 'r1', 'c5', 'c1'
+  'r200', 'r100', 'r50', 'r20', 'r10', 'r5', 'r2', 'r1', 'c50', 'c20', 'c10', 'c5', 'c1'
 ].forEach((id) => {
   document.getElementById(id).addEventListener('input', recalcAll);
 });
@@ -277,7 +279,7 @@ document.getElementById('submitCashUpBtn').addEventListener('click', async () =>
     cardSalesCount: num('cardSalesCount'),
     totalCardSales: num('totalCardSales'),
     r200: num('r200'), r100: num('r100'), r50: num('r50'), r20: num('r20'), r10: num('r10'),
-    r5: num('r5'), r2: num('r2'), r1: num('r1'), c5: num('c5'), c1: num('c1'),
+    r5: num('r5'), r2: num('r2'), r1: num('r1'), c50: num('c50'), c20: num('c20'), c10: num('c10'), c5: num('c5'), c1: num('c1'),
     overingExplain: document.getElementById('overingExplain').value,
     refundsExplain: document.getElementById('refundsExplain').value,
     expensesExplain: document.getElementById('expensesExplain').value,
