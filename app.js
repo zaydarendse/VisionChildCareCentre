@@ -3,7 +3,7 @@
 // ─────────────────────────────────────────────────────────────────────
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx61az3p6AVZ5DJ-BYAjYeRsZYzEmkPFPm8wy-jRoXR02ghe6rAgFOoUTNw8wiyKe_5/exec';
 
-const STORAGE_KEY = 'visionchildandyouthcarecentre@gmail.com';
+const STORAGE_KEY = 'vision_cashup_email';
 
 // ─────────────────────────────────────────────────────────────────────
 // API HELPERS
@@ -17,17 +17,42 @@ async function apiGet(action, params) {
   const url = new URL(APPS_SCRIPT_URL);
   url.searchParams.set('action', action);
   Object.keys(params || {}).forEach((k) => url.searchParams.set(k, params[k]));
-  const res = await fetch(url.toString());
-  return res.json();
+  return fetchWithRetry(() => fetch(url.toString()));
 }
 
 async function apiPost(action, data) {
-  const res = await fetch(APPS_SCRIPT_URL, {
+  const body = JSON.stringify(Object.assign({ action: action }, data));
+  return fetchWithRetry(() => fetch(APPS_SCRIPT_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify(Object.assign({ action: action }, data))
-  });
-  return res.json();
+    body: body
+  }));
+}
+
+// Apps Script occasionally serves a broken response (cold start, or an
+// infrastructure hiccup on Google's side) instead of real JSON — the actual
+// server-side action may still have completed. This wrapper retries once
+// before giving up, and always resolves to an object instead of throwing,
+// so nothing in the app can hang on an unhandled rejection.
+async function fetchWithRetry(doFetch, attempts) {
+  attempts = attempts || 2;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      const res = await doFetch();
+      const text = await res.text();
+      try {
+        return JSON.parse(text);
+      } catch (parseErr) {
+        // fall through to retry
+      }
+    } catch (fetchErr) {
+      // fall through to retry
+    }
+    if (i < attempts - 1) {
+      await new Promise((resolve) => setTimeout(resolve, 1200));
+    }
+  }
+  return { success: false, networkError: true, error: 'Could not reach the server. Please check your connection and try again.' };
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -294,7 +319,11 @@ document.getElementById('submitCashUpBtn').addEventListener('click', async () =>
   btn.disabled = false; btn.textContent = 'Submit Cash-Up';
 
   if (!result.success) {
-    errEl.textContent = result.error || 'Submission failed. Please try again.';
+    if (result.networkError) {
+      errEl.textContent = 'Lost connection confirming this submission — it may have already gone through. Please check with Back Office before submitting again, to avoid a duplicate entry.';
+    } else {
+      errEl.textContent = result.error || 'Submission failed. Please try again.';
+    }
     return;
   }
   document.getElementById('submittedRef').textContent = 'Reference: ' + result.submissionId +
