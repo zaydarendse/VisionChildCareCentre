@@ -1,7 +1,7 @@
 // ─────────────────────────────────────────────────────────────────────
 // CONFIG — paste your Apps Script Web App /exec URL here after deploying
 // ─────────────────────────────────────────────────────────────────────
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxe-m8cavVb86HE3EouZDlKAB6xN0fYUA7eGmLASmnPtXGIraLDZHm0ScnGnofFP5jO/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx61az3p6AVZ5DJ-BYAjYeRsZYzEmkPFPm8wy-jRoXR02ghe6rAgFOoUTNw8wiyKe_5/exec';
 
 const STORAGE_KEY = 'vision_cashup_email';
 
@@ -268,6 +268,79 @@ function addDonationRow() {
 }
 document.getElementById('addDonationBtn').addEventListener('click', addDonationRow);
 
+// ─────────────────────────────────────────────────────────────────────
+// DAILY SALES SHEET PHOTO
+// A photo of the handwritten sales sheet, resized/compressed in the
+// browser (so a phone photo doesn't blow past Apps Script's upload size),
+// then sent as a base64 data URL and appended as a second page of the
+// same cash-up PDF server-side — not a separate file or email.
+// ─────────────────────────────────────────────────────────────────────
+
+let salesSheetImageDataUrl = null;
+const SALES_SHEET_MAX_DIMENSION = 1600;
+const SALES_SHEET_JPEG_QUALITY = 0.72;
+
+function resizeImageFileToDataUrl(file, maxDimension, quality) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Could not read that file.'));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('That file doesn\'t look like a valid image.'));
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > maxDimension || height > maxDimension) {
+          if (width >= height) {
+            height = Math.round(height * (maxDimension / width));
+            width = maxDimension;
+          } else {
+            width = Math.round(width * (maxDimension / height));
+            height = maxDimension;
+          }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+document.getElementById('salesSheetInput').addEventListener('change', async (e) => {
+  const file = e.target.files && e.target.files[0];
+  const errEl = document.getElementById('salesSheetError');
+  errEl.textContent = '';
+  if (!file) return;
+
+  if (!file.type.startsWith('image/')) {
+    errEl.textContent = 'Please choose an image file.';
+    e.target.value = '';
+    return;
+  }
+
+  try {
+    salesSheetImageDataUrl = await resizeImageFileToDataUrl(file, SALES_SHEET_MAX_DIMENSION, SALES_SHEET_JPEG_QUALITY);
+    const preview = document.getElementById('salesSheetPreview');
+    preview.src = salesSheetImageDataUrl;
+    document.getElementById('salesSheetPreviewWrap').hidden = false;
+  } catch (err) {
+    errEl.textContent = err.message || 'Could not process that photo. Please try another.';
+    salesSheetImageDataUrl = null;
+  }
+});
+
+document.getElementById('salesSheetRemoveBtn').addEventListener('click', () => {
+  salesSheetImageDataUrl = null;
+  document.getElementById('salesSheetInput').value = '';
+  document.getElementById('salesSheetPreviewWrap').hidden = true;
+  document.getElementById('salesSheetError').textContent = '';
+});
+
 document.getElementById('submitCashUpBtn').addEventListener('click', async () => {
   const errEl = document.getElementById('submitError');
   errEl.textContent = '';
@@ -310,7 +383,8 @@ document.getElementById('submitCashUpBtn').addEventListener('click', async () =>
     expensesExplain: document.getElementById('expensesExplain').value,
     shortOverExplain: document.getElementById('shortOverExplain').value,
     managerName: document.getElementById('managerName').value,
-    donations: donations
+    donations: donations,
+    salesSheetImage: salesSheetImageDataUrl || ''
   };
 
   const btn = document.getElementById('submitCashUpBtn');
@@ -342,6 +416,10 @@ document.getElementById('newCashUpBtn').addEventListener('click', () => {
   document.getElementById('shortOverExplain').value = '';
   document.getElementById('donationsBody').innerHTML = '';
   document.getElementById('mDate').value = new Date().toISOString().slice(0, 10);
+  salesSheetImageDataUrl = null;
+  document.getElementById('salesSheetInput').value = '';
+  document.getElementById('salesSheetPreviewWrap').hidden = true;
+  document.getElementById('salesSheetError').textContent = '';
   recalcAll();
   showView('manager');
 });

@@ -130,6 +130,19 @@
     </div>
 
     <div class="card">
+      <h2>Daily Sales Sheet</h2>
+      <p class="muted">Take a photo of the completed daily sales sheet (or choose one from your gallery) — it will be attached to this cash-up's PDF as a second page.</p>
+      <label>Photo of daily sales sheet
+        <input type="file" id="salesSheetInput" accept="image/*" capture="environment">
+      </label>
+      <div id="salesSheetPreviewWrap" hidden>
+        <img id="salesSheetPreview" class="sales-sheet-preview" alt="Daily sales sheet preview">
+        <button type="button" id="salesSheetRemoveBtn" class="link-btn">Remove photo</button>
+      </div>
+      <p id="salesSheetError" class="error-text"></p>
+    </div>
+
+    <div class="card">
       <h2>Explanations &amp; Sign-off</h2>
       <label>Overings paid out <textarea id="overingExplain"></textarea></label>
       <label>Refunds paid out <textarea id="refundsExplain"></textarea></label>
