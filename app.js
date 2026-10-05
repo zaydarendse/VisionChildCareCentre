@@ -3,7 +3,7 @@
 // ─────────────────────────────────────────────────────────────────────
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw1I-g08PbGu7do89Kvpk9ADKDro44iOONuScRjBasq20fjEhyARTOQc3DTM6M27CGO/exec';
 
-const STORAGE_KEY = 'vision_cashup_email';
+const STORAGE_KEY = 'visionchildandyouthcarecentre@gmail.com';
 
 // ─────────────────────────────────────────────────────────────────────
 // API HELPERS
@@ -269,14 +269,18 @@ function addDonationRow() {
 document.getElementById('addDonationBtn').addEventListener('click', addDonationRow);
 
 // ─────────────────────────────────────────────────────────────────────
-// DAILY SALES SHEET PHOTO
-// A photo of the handwritten sales sheet, resized/compressed in the
+// DAILY SALES SHEET PHOTO(S)
+// Photos of the handwritten sales sheet(s), resized/compressed in the
 // browser (so a phone photo doesn't blow past Apps Script's upload size),
-// then sent as a base64 data URL and appended as a second page of the
-// same cash-up PDF server-side — not a separate file or email.
+// then sent as base64 data URLs and each appended as its own page of the
+// same cash-up PDF server-side — not a separate file or email. Busy days
+// can produce more than one sales sheet, so cashiers can add several
+// photos (capped so the resulting PDF/email attachment stays usable).
 // ─────────────────────────────────────────────────────────────────────
 
-let salesSheetImageDataUrl = null;
+let salesSheetSlots = []; // [{ id, dataUrl }]
+let salesSheetSlotCounter = 0;
+const SALES_SHEET_MAX_PHOTOS = 5;
 const SALES_SHEET_MAX_DIMENSION = 1600;
 const SALES_SHEET_JPEG_QUALITY = 0.72;
 
@@ -311,35 +315,62 @@ function resizeImageFileToDataUrl(file, maxDimension, quality) {
   });
 }
 
-document.getElementById('salesSheetInput').addEventListener('change', async (e) => {
-  const file = e.target.files && e.target.files[0];
-  const errEl = document.getElementById('salesSheetError');
-  errEl.textContent = '';
-  if (!file) return;
+function renderSalesSheetList() {
+  const wrap = document.getElementById('salesSheetList');
+  wrap.innerHTML = '';
+  salesSheetSlots.forEach((slot, idx) => {
+    const div = document.createElement('div');
+    div.className = 'sales-sheet-slot';
+    if (slot.dataUrl) {
+      div.innerHTML =
+        '<img src="' + slot.dataUrl + '" class="sales-sheet-preview" alt="Daily sales sheet photo ' + (idx + 1) + '">' +
+        '<button type="button" class="link-btn sales-sheet-remove">Remove photo ' + (idx + 1) + '</button>';
+      div.querySelector('.sales-sheet-remove').addEventListener('click', () => {
+        salesSheetSlots = salesSheetSlots.filter((s) => s.id !== slot.id);
+        renderSalesSheetList();
+      });
+    } else {
+      div.innerHTML =
+        '<label>Photo ' + (idx + 1) + ' of daily sales sheet' +
+        '<input type="file" class="sales-sheet-input" accept="image/*" capture="environment">' +
+        '</label>' +
+        '<button type="button" class="link-btn sales-sheet-remove">Remove</button>';
+      div.querySelector('.sales-sheet-input').addEventListener('change', async (e) => {
+        const file = e.target.files && e.target.files[0];
+        const errEl = document.getElementById('salesSheetError');
+        errEl.textContent = '';
+        if (!file) return;
+        if (!file.type.startsWith('image/')) {
+          errEl.textContent = 'Please choose an image file.';
+          e.target.value = '';
+          return;
+        }
+        try {
+          slot.dataUrl = await resizeImageFileToDataUrl(file, SALES_SHEET_MAX_DIMENSION, SALES_SHEET_JPEG_QUALITY);
+          renderSalesSheetList();
+        } catch (err) {
+          errEl.textContent = err.message || 'Could not process that photo. Please try another.';
+        }
+      });
+      div.querySelector('.sales-sheet-remove').addEventListener('click', () => {
+        salesSheetSlots = salesSheetSlots.filter((s) => s.id !== slot.id);
+        renderSalesSheetList();
+      });
+    }
+    wrap.appendChild(div);
+  });
+  const addBtn = document.getElementById('addSalesSheetPhotoBtn');
+  addBtn.hidden = salesSheetSlots.length >= SALES_SHEET_MAX_PHOTOS;
+  document.getElementById('salesSheetError').textContent =
+    salesSheetSlots.length >= SALES_SHEET_MAX_PHOTOS ? 'Maximum of ' + SALES_SHEET_MAX_PHOTOS + ' photos reached.' : '';
+}
 
-  if (!file.type.startsWith('image/')) {
-    errEl.textContent = 'Please choose an image file.';
-    e.target.value = '';
-    return;
-  }
-
-  try {
-    salesSheetImageDataUrl = await resizeImageFileToDataUrl(file, SALES_SHEET_MAX_DIMENSION, SALES_SHEET_JPEG_QUALITY);
-    const preview = document.getElementById('salesSheetPreview');
-    preview.src = salesSheetImageDataUrl;
-    document.getElementById('salesSheetPreviewWrap').hidden = false;
-  } catch (err) {
-    errEl.textContent = err.message || 'Could not process that photo. Please try another.';
-    salesSheetImageDataUrl = null;
-  }
-});
-
-document.getElementById('salesSheetRemoveBtn').addEventListener('click', () => {
-  salesSheetImageDataUrl = null;
-  document.getElementById('salesSheetInput').value = '';
-  document.getElementById('salesSheetPreviewWrap').hidden = true;
-  document.getElementById('salesSheetError').textContent = '';
-});
+function addSalesSheetSlot() {
+  if (salesSheetSlots.length >= SALES_SHEET_MAX_PHOTOS) return;
+  salesSheetSlots.push({ id: ++salesSheetSlotCounter, dataUrl: null });
+  renderSalesSheetList();
+}
+document.getElementById('addSalesSheetPhotoBtn').addEventListener('click', addSalesSheetSlot);
 
 document.getElementById('submitCashUpBtn').addEventListener('click', async () => {
   const errEl = document.getElementById('submitError');
@@ -384,7 +415,7 @@ document.getElementById('submitCashUpBtn').addEventListener('click', async () =>
     shortOverExplain: document.getElementById('shortOverExplain').value,
     managerName: document.getElementById('managerName').value,
     donations: donations,
-    salesSheetImage: salesSheetImageDataUrl || ''
+    salesSheetImages: salesSheetSlots.filter((s) => s.dataUrl).map((s) => s.dataUrl)
   };
 
   const btn = document.getElementById('submitCashUpBtn');
@@ -416,10 +447,8 @@ document.getElementById('newCashUpBtn').addEventListener('click', () => {
   document.getElementById('shortOverExplain').value = '';
   document.getElementById('donationsBody').innerHTML = '';
   document.getElementById('mDate').value = new Date().toISOString().slice(0, 10);
-  salesSheetImageDataUrl = null;
-  document.getElementById('salesSheetInput').value = '';
-  document.getElementById('salesSheetPreviewWrap').hidden = true;
-  document.getElementById('salesSheetError').textContent = '';
+  salesSheetSlots = [];
+  renderSalesSheetList();
   recalcAll();
   showView('manager');
 });
@@ -447,10 +476,351 @@ function initAdminTabs(adminEmail) {
 function switchAdminTab(tab, adminEmail) {
   document.querySelectorAll('.tab-btn').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
   document.querySelectorAll('.admin-tab-panel').forEach((p) => { p.hidden = (p.id !== 'admin-tab-' + tab); });
+  document.body.classList.toggle('wide-admin', tab === 'dashboard');
 
   if (tab === 'approvals') loadAdminView(adminEmail);
   else if (tab === 'submissions') loadAdminSubmissions(adminEmail);
-  else if (tab === 'dashboard') loadAdminDashboard(adminEmail);
+  else if (tab === 'dashboard') initAdminDashboard(adminEmail);
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// ADMIN VIEW — Dashboard (redesign)
+// ─────────────────────────────────────────────────────────────────────
+
+// Fixed categorical hues (dataviz-validated order) — assigned by a branch's
+// position in the org's Branches list, never by its current sales rank, so
+// a branch keeps the same colour everywhere even as filters/sorting change.
+const DASH_SERIES_COLORS = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#4a3aa7', '#e34948'];
+let dashBranchOrder = [];
+function colorForBranch(branch) {
+  let i = dashBranchOrder.indexOf(branch);
+  if (i === -1) i = dashBranchOrder.length; // unknown/legacy branch — falls after the known list
+  return DASH_SERIES_COLORS[i % DASH_SERIES_COLORS.length];
+}
+
+let dashInitialised = false;
+let dashCharts = {};
+let dashAdminEmail = null;
+
+function initAdminDashboard(adminEmail) {
+  dashAdminEmail = adminEmail;
+  if (!dashInitialised) {
+    document.getElementById('dashPeriod').addEventListener('change', () => {
+      document.getElementById('dashFromWrap').hidden = document.getElementById('dashPeriod').value !== 'custom';
+      document.getElementById('dashToWrap').hidden = document.getElementById('dashPeriod').value !== 'custom';
+      loadAdminDashboard();
+    });
+    document.getElementById('dashBranch').addEventListener('change', loadAdminDashboard);
+    document.getElementById('dashFrom').addEventListener('change', loadAdminDashboard);
+    document.getElementById('dashTo').addEventListener('change', loadAdminDashboard);
+    dashInitialised = true;
+  }
+  loadAdminDashboard();
+}
+
+function destroyChart(id) {
+  if (dashCharts[id]) { dashCharts[id].destroy(); delete dashCharts[id]; }
+}
+
+async function loadAdminDashboard() {
+  const period = document.getElementById('dashPeriod').value;
+  const branch = document.getElementById('dashBranch').value;
+  const from = document.getElementById('dashFrom').value;
+  const to = document.getElementById('dashTo').value;
+
+  const loadingEl = document.getElementById('dashLoading');
+  loadingEl.hidden = false;
+  loadingEl.textContent = 'Loading dashboard…';
+  loadingEl.classList.remove('error-text');
+  document.getElementById('dashContent').hidden = true;
+
+  const result = await apiGet('dashboardV2', { email: dashAdminEmail, period, branch, from, to });
+  if (!result.success) {
+    document.getElementById('dashLoading').textContent = result.error || 'Could not load the dashboard.';
+    document.getElementById('dashLoading').classList.add('error-text');
+    return;
+  }
+  document.getElementById('dashLoading').hidden = true;
+  document.getElementById('dashContent').hidden = false;
+
+  // Populate the branch dropdown once, keeping the admin's current selection.
+  const branchSelect = document.getElementById('dashBranch');
+  if (dashBranchOrder.length === 0 && result.branches && result.branches.length) {
+    dashBranchOrder = result.branches.slice();
+    const current = branchSelect.value;
+    result.branches.forEach((b) => {
+      const opt = document.createElement('option');
+      opt.value = b; opt.textContent = b;
+      branchSelect.appendChild(opt);
+    });
+    branchSelect.value = current;
+  }
+
+  document.getElementById('dashRangeLabel').textContent =
+    'Showing ' + formatDateOnly(result.range.from) + ' – ' + formatDateOnly(result.range.to) +
+    (result.branch !== 'All Branches' ? ' · ' + result.branch : '');
+
+  renderKpis(result.kpis);
+  renderNettTrendChart(result);
+  renderByBranchChart(result.byBranch);
+  renderByBranchTable(result.byBranch);
+  renderSubmissionsChart(result);
+  renderComparisonChart(result.kpis);
+  renderMonthlyHistoryChart(result);
+  renderBranchOverTimeChart(result);
+}
+
+function formatDateOnly(isoDate) {
+  const d = new Date(isoDate + 'T00:00:00');
+  if (isNaN(d.getTime())) return isoDate;
+  return d.toLocaleDateString('en-ZA', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function renderKpis(kpis) {
+  document.getElementById('kpiCount').textContent = kpis.count;
+  document.getElementById('kpiNett').textContent = rand(kpis.totalNettSales);
+  document.getElementById('kpiCards').textContent = rand(kpis.totalCardsAndCash);
+  document.getElementById('kpiDonations').textContent = rand(kpis.totalDonations);
+  document.getElementById('kpiShortOver').textContent = rand(kpis.totalShortOver);
+
+  const card = document.getElementById('kpiShortOverCard');
+  const badge = document.getElementById('kpiShortOverBadge');
+  let state, label;
+  if (Math.abs(kpis.totalShortOver) < 0.005) { state = 'balanced'; label = 'BALANCED'; }
+  else if (kpis.totalShortOver > 0) { state = 'over'; label = 'OVER'; }
+  else { state = 'short'; label = 'SHORT'; }
+  card.dataset.state = state;
+  badge.textContent = label;
+}
+
+// Shared look for the hover/crosshair tooltip and axis ink across every chart.
+function baseChartOptions(extra) {
+  return Object.assign({
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: '#1a1a1a', titleColor: '#fff', bodyColor: '#fff',
+        padding: 10, cornerRadius: 6, displayColors: true
+      }
+    },
+    scales: {
+      x: { grid: { display: false }, ticks: { color: '#6b6b6b', font: { size: 11 } } },
+      y: { grid: { color: '#e7e4ea' }, ticks: { color: '#6b6b6b', font: { size: 11 } }, beginAtZero: true }
+    }
+  }, extra || {});
+}
+
+function renderNettTrendChart(result) {
+  document.getElementById('trendGranularityLabel').textContent = '(' + result.granularity + ')';
+  const ctx = document.getElementById('chartNettTrend');
+  destroyChart('nettTrend');
+  dashCharts.nettTrend = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: result.trend.map((t) => t.label),
+      datasets: [{
+        label: 'Nett Sales',
+        data: result.trend.map((t) => t.nettSales),
+        borderColor: '#2a78d6',
+        backgroundColor: 'rgba(42,120,214,0.12)',
+        pointBackgroundColor: '#2a78d6',
+        pointRadius: 3,
+        pointHoverRadius: 5,
+        borderWidth: 2,
+        fill: true,
+        tension: 0.25
+      }]
+    },
+    options: baseChartOptions({
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1a1a1a', titleColor: '#fff', bodyColor: '#fff', padding: 10, cornerRadius: 6,
+          callbacks: { label: (c) => ' Nett Sales: ' + rand(c.parsed.y) }
+        }
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: '#6b6b6b', font: { size: 11 }, maxRotation: 0, autoSkip: true } },
+        y: { grid: { color: '#e7e4ea' }, ticks: { color: '#6b6b6b', font: { size: 11 }, callback: (v) => rand(v) }, beginAtZero: true }
+      }
+    })
+  });
+}
+
+function renderByBranchChart(byBranch) {
+  const ctx = document.getElementById('chartByBranch');
+  destroyChart('byBranch');
+  dashCharts.byBranch = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: byBranch.map((b) => b.branch),
+      datasets: [{
+        label: 'Nett Sales',
+        data: byBranch.map((b) => b.totalNettSales),
+        backgroundColor: byBranch.map((b) => colorForBranch(b.branch)),
+        borderRadius: 4,
+        maxBarThickness: 46
+      }]
+    },
+    options: baseChartOptions({
+      indexAxis: 'y',
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1a1a1a', titleColor: '#fff', bodyColor: '#fff', padding: 10, cornerRadius: 6,
+          callbacks: { label: (c) => ' Nett Sales: ' + rand(c.parsed.x) }
+        }
+      },
+      scales: {
+        x: { grid: { color: '#e7e4ea' }, ticks: { color: '#6b6b6b', font: { size: 11 }, callback: (v) => rand(v) }, beginAtZero: true },
+        y: { grid: { display: false }, ticks: { color: '#1a1a1a', font: { size: 12, weight: '700' } } }
+      }
+    })
+  });
+}
+
+function renderByBranchTable(byBranch) {
+  const tbody = document.getElementById('dashByBranchBody');
+  tbody.innerHTML = '';
+  byBranch.forEach((b) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td>' + escapeHtml(b.branch) + '</td><td>' + b.count + '</td><td>' + rand(b.totalNettSales) + '</td><td>' + rand(b.totalDonations) + '</td>';
+    tbody.appendChild(tr);
+  });
+}
+
+function renderSubmissionsChart(result) {
+  const ctx = document.getElementById('chartSubmissions');
+  destroyChart('submissions');
+  dashCharts.submissions = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: result.trend.map((t) => t.label),
+      datasets: [{
+        label: 'Submissions',
+        data: result.trend.map((t) => t.submissions),
+        backgroundColor: '#eb6834',
+        borderRadius: 4,
+        maxBarThickness: 28
+      }]
+    },
+    options: baseChartOptions({
+      scales: {
+        x: { grid: { display: false }, ticks: { color: '#6b6b6b', font: { size: 10 }, maxRotation: 0, autoSkip: true } },
+        y: { grid: { color: '#e7e4ea' }, ticks: { color: '#6b6b6b', font: { size: 11 }, precision: 0 }, beginAtZero: true }
+      }
+    })
+  });
+}
+
+function renderComparisonChart(kpis) {
+  const ctx = document.getElementById('chartComparison');
+  destroyChart('comparison');
+  const rows = [
+    { label: 'Nett Sales', value: kpis.totalNettSales, color: '#2a78d6' },
+    { label: 'Cards & Cash', value: kpis.totalCardsAndCash, color: '#eb6834' },
+    { label: 'Donations', value: kpis.totalDonations, color: '#1baf7a' }
+  ];
+  dashCharts.comparison = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: rows.map((r) => r.label),
+      datasets: [{
+        data: rows.map((r) => r.value),
+        backgroundColor: rows.map((r) => r.color),
+        borderRadius: 4,
+        maxBarThickness: 60
+      }]
+    },
+    options: baseChartOptions({
+      indexAxis: 'y',
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1a1a1a', titleColor: '#fff', bodyColor: '#fff', padding: 10, cornerRadius: 6,
+          callbacks: { label: (c) => ' ' + rand(c.parsed.x) }
+        }
+      },
+      scales: {
+        x: { grid: { color: '#e7e4ea' }, ticks: { color: '#6b6b6b', font: { size: 11 }, callback: (v) => rand(v) }, beginAtZero: true },
+        y: { grid: { display: false }, ticks: { color: '#1a1a1a', font: { size: 12, weight: '700' } } }
+      }
+    })
+  });
+}
+
+function renderMonthlyHistoryChart(result) {
+  const note = document.getElementById('monthlyHistoryBranchNote');
+  note.textContent = result.branch !== 'All Branches' ? ' for ' + result.branch : '';
+  const ctx = document.getElementById('chartMonthlyHistory');
+  destroyChart('monthlyHistory');
+  dashCharts.monthlyHistory = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: result.monthlyHistory.map((m) => m.label),
+      datasets: [{
+        label: 'Nett Sales',
+        data: result.monthlyHistory.map((m) => m.nettSales),
+        backgroundColor: '#1baf7a',
+        borderRadius: 4,
+        maxBarThickness: 46
+      }]
+    },
+    options: baseChartOptions({
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1a1a1a', titleColor: '#fff', bodyColor: '#fff', padding: 10, cornerRadius: 6,
+          callbacks: { label: (c) => ' Nett Sales: ' + rand(c.parsed.y) }
+        }
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: '#6b6b6b', font: { size: 11 } } },
+        y: { grid: { color: '#e7e4ea' }, ticks: { color: '#6b6b6b', font: { size: 11 }, callback: (v) => rand(v) }, beginAtZero: true }
+      }
+    })
+  });
+}
+
+function renderBranchOverTimeChart(result) {
+  const ctx = document.getElementById('chartBranchOverTime');
+  destroyChart('branchOverTime');
+  const labels = result.trend.map((t) => t.label);
+  const series = (result.trendByBranch || []).slice(0, 8); // categorical cap — see dataviz skill non-negotiables
+  const twoOrMore = series.length >= 2;
+  dashCharts.branchOverTime = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: series.map((s) => ({
+        label: s.branch,
+        data: s.series,
+        borderColor: colorForBranch(s.branch),
+        backgroundColor: colorForBranch(s.branch),
+        pointRadius: 3,
+        pointHoverRadius: 5,
+        borderWidth: 2,
+        tension: 0.25,
+        fill: false
+      }))
+    },
+    options: baseChartOptions({
+      plugins: {
+        legend: { display: twoOrMore, position: 'bottom', labels: { color: '#1a1a1a', boxWidth: 10, boxHeight: 10, usePointStyle: true } },
+        tooltip: {
+          backgroundColor: '#1a1a1a', titleColor: '#fff', bodyColor: '#fff', padding: 10, cornerRadius: 6,
+          callbacks: { label: (c) => ' ' + c.dataset.label + ': ' + rand(c.parsed.y) }
+        }
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: '#6b6b6b', font: { size: 11 }, maxRotation: 0, autoSkip: true } },
+        y: { grid: { color: '#e7e4ea' }, ticks: { color: '#6b6b6b', font: { size: 11 }, callback: (v) => rand(v) }, beginAtZero: true }
+      }
+    })
+  });
 }
 
 async function loadAdminSubmissions(adminEmail) {
@@ -465,33 +835,6 @@ async function loadAdminSubmissions(adminEmail) {
       '<span>' + escapeHtml(s.branch) + ' — ' + formatDateTime(s.timestamp) + '</span>' +
       '<span>' + (s.pdfUrl ? '<a href="' + s.pdfUrl + '" target="_blank">PDF</a>' : '') + '</span>';
     listEl.appendChild(div);
-  });
-}
-
-async function loadAdminDashboard(adminEmail) {
-  const result = await apiGet('dashboardTotals', { email: adminEmail });
-  if (!result.success) {
-    document.getElementById('admin-tab-dashboard').innerHTML = '<p class="error-text">' + result.error + '</p>';
-    return;
-  }
-  document.getElementById('dashWeekCount').textContent = result.week.count;
-  document.getElementById('dashWeekNett').textContent = rand(result.week.totalNettSales);
-  document.getElementById('dashWeekCards').textContent = rand(result.week.totalCardsAndCash);
-  document.getElementById('dashWeekDonations').textContent = rand(result.week.totalDonations);
-  document.getElementById('dashWeekShortOver').textContent = rand(result.week.totalShortOver);
-
-  document.getElementById('dashMonthCount').textContent = result.month.count;
-  document.getElementById('dashMonthNett').textContent = rand(result.month.totalNettSales);
-  document.getElementById('dashMonthCards').textContent = rand(result.month.totalCardsAndCash);
-  document.getElementById('dashMonthDonations').textContent = rand(result.month.totalDonations);
-  document.getElementById('dashMonthShortOver').textContent = rand(result.month.totalShortOver);
-
-  const tbody = document.getElementById('dashByBranchBody');
-  tbody.innerHTML = '';
-  result.byBranch.forEach((b) => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = '<td>' + escapeHtml(b.branch) + '</td><td>' + b.count + '</td><td>' + rand(b.totalNettSales) + '</td><td>' + rand(b.totalDonations) + '</td>';
-    tbody.appendChild(tr);
   });
 }
 
